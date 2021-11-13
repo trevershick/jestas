@@ -11,7 +11,6 @@ extern crate fuzzy_matcher;
 
 mod settings;
 mod model;
-mod core;
 mod visitor_job_print;
 mod jenkins;
 
