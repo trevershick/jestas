@@ -1,40 +1,23 @@
-use crate::model::{JenkinsItemVisitor, JenkinsItem};
-use crate::jenkins::load_jenkins_item;
+use crate::model::{JenkinsItem, JenkinsItemVisitor};
 
-pub struct JobPrintVisitor<'a> {
-    pub recurse: bool,
-    pub client: &'a reqwest::blocking::Client,
-    pub fuzzy_string: Option<String>,
-    pub matcher: Box<dyn fuzzy_matcher::FuzzyMatcher>,
-}
+pub struct JobPrintVisitor {}
 
-impl JobPrintVisitor<'_> {
-    pub fn matches(&self, value: &str)->bool {
-        if let Some(filter) =&self.fuzzy_string {
-            if let None = self.matcher.fuzzy_match(&value, &filter) {
-                return false;
-            }
-        }
-        true
-    }
-}
-
-impl JenkinsItemVisitor for JobPrintVisitor<'_> {
+impl JenkinsItemVisitor for JobPrintVisitor /*<'_>*/ {
     fn visit_freestyle_project(&mut self, it: &JenkinsItem) -> crate::Result<()> {
-        if let JenkinsItem::FreeStyleProject { name, status, url, .. } = it {
-            if self.matches(name) {
-                println!("{} {} {}", name, status,url);
-            }
-        }
-        Ok(())
+        Ok(match it {
+            JenkinsItem::FreeStyleProject {
+                name, status, url, ..
+            } => println!("{} {} {}", name, status, url),
+            _ => (),
+        })
     }
     fn visit_workflow_job(&mut self, it: &JenkinsItem) -> crate::Result<()> {
-        if let JenkinsItem::WorkflowJob { name, status, url, .. } = it {
-            if self.matches(name) {
-                println!("{} {} {}", name, status, url);
-            }
-        }
-        Ok(())
+        Ok(match it {
+            JenkinsItem::WorkflowJob {
+                name, status, url, ..
+            } => println!("{} {} {}", name, status, url),
+            _ => (),
+        })
     }
     fn visit_freestyle_build(&mut self, _s: &JenkinsItem) -> crate::Result<()> {
         Ok(())
@@ -45,22 +28,7 @@ impl JenkinsItemVisitor for JobPrintVisitor<'_> {
     fn visit_workflow_mb_project(&mut self, _s: &JenkinsItem) -> crate::Result<()> {
         Ok(())
     }
-    fn visit_folder(&mut self, it: &JenkinsItem) -> crate::Result<()> {
-        if !self.recurse {
-            return Ok(());
-        }
-        debug!("visit_folder");
-        if let JenkinsItem::Folder { url, jobs, .. } = it {
-            if let Some(j) = jobs {
-                for x in j.into_iter() {
-                    x.walk(self)?;
-                }
-                return Ok(());
-            }
-            debug!("Load folder");
-            let item = load_jenkins_item(url, self.client)?;
-            item.walk(self)?;
-        }
+    fn visit_folder(&mut self, _it: &JenkinsItem) -> crate::Result<()> {
         Ok(())
     }
 }
