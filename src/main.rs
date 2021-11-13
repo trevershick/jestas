@@ -12,10 +12,12 @@ extern crate fuzzy_matcher;
 mod settings;
 mod model;
 mod visitor_job_print;
+mod visitor_log_print;
 mod jenkins;
 
 use crate::jenkins::load_jenkins_item;
 use crate::visitor_job_print::JobPrintVisitor;
+use crate::visitor_log_print::LogPrintVisitor;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 type Client = reqwest::blocking::Client;
@@ -36,17 +38,42 @@ fn list_jobs(url: &str, recurse: bool, filters: Option<Vec<String>>) -> Result<(
     item.walk(&mut visitor)?;
     Ok(())
 }
+fn list_logs(url: &str, recurse: bool, filters: Option<Vec<String>>) -> Result<()> {
+    debug!("list_logs({}, {})", url, recurse);
+    // gather and print each job and it's status
+    // load the object, recurse
+    // iterate over the logs and print them
+    let client = Client::new();
+    let item = load_jenkins_item(url, &client).expect("item loaded");
+    let mut visitor = LogPrintVisitor {
+        recurse,
+        client: &client,
+        fuzzy_string: filters.map(|f| f.join("")),
+        matcher: Box::new(fuzzy_matcher::skim::SkimMatcherV2::default()),
+    };
+    item.walk(&mut visitor)?;
+    Ok(())
+}
 
 fn main() {
     //let url: &str = "http://localhost:8080";
     let settings = settings::Settings::new().unwrap();
     println!("{:?}", settings);
 
+    let server = settings.server.expect("server");
+
     if let Some(c) = settings.jobs {
         list_jobs(
-            &settings.server.expect("server"),
+            &server,
             c.recursive.unwrap_or_default(),
             c.filters,
         ).expect("list jobs");
+    }
+    if let Some(c) = settings.logs {
+        list_logs(
+            &server,
+            c.recursive.unwrap_or_default(),
+            c.filters,
+        ).expect("list logs");
     }
 }

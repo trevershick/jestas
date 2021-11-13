@@ -10,10 +10,17 @@ pub struct Settings {
     pub trust: Option<bool>,
     pub debug: Option<bool>,
     pub jobs: Option<CommandJobs>,
+    pub logs: Option<CommandLogs>,
 }
 
 #[derive(Default, Debug, Deserialize)]
 pub struct CommandJobs {
+    pub recursive: Option<bool>,
+    pub filters: Option<Vec<String>>,
+}
+
+#[derive(Default, Debug, Deserialize)]
+pub struct CommandLogs {
     pub recursive: Option<bool>,
     pub filters: Option<Vec<String>>,
 }
@@ -78,6 +85,15 @@ impl Settings {
                         .takes_value(false))
                     .arg(
                     Arg::with_name("filters").takes_value(true).multiple(true))
+            )
+            .subcommand(
+                SubCommand::with_name("logs").arg(
+                    Arg::with_name("recursive")
+                        .short("r")
+                        .long("recursive")
+                        .takes_value(false))
+                    .arg(
+                    Arg::with_name("filters").takes_value(true).multiple(true))
             );
         return a;
     }
@@ -102,6 +118,12 @@ impl Settings {
             s.set("jobs.recursive", m.is_present("recursive"))?;
             if let Some(filters) = m.values_of("filters") {
                 s.set("jobs.filters", filters.collect::<Vec<&str>>())?;
+            }
+        }
+        if let Some(m) = matches.subcommand_matches("logs") {
+            s.set("logs.recursive", m.is_present("recursive"))?;
+            if let Some(filters) = m.values_of("filters") {
+                s.set("logs.filters", filters.collect::<Vec<&str>>())?;
             }
         }
         debug!("debug: {:?}", s.get_bool("debug"));
