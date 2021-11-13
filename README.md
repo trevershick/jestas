@@ -1,25 +1,43 @@
 jestas
 
-Specify a configuration file:
+    $ jestas --server http://localhost:8080
+    # returns nothing for now
 
-    jestas --config myConfig.json
+    $ jestas --server http://localhost:8080 jobs
+    job1 fail http://localhost:8080/job/job1/
 
-Pass Jenkins server URL manually (if everyone has read access):
+    $ jestas --server http://localhost:8080 jobs --recursive
+    job1 fail http://localhost:8080/job/job1/
+    BadJob fail http://localhost:8080/job/TestCo/job/BadJob/
+    GitProject ok http://localhost:8080/job/TestCo/job/GitProject/
+    job3 ok http://localhost:8080/job/TestCo/job/job3/
 
-    jestas --server https://jenkins.qa.ubuntu.com
+    $ jestas --server http://localhost:8080 jobs --recursive 3
+    job3 ok http://localhost:8080/job/TestCo/job/job3/
 
-Pass server URL, username and API token (for authenticated use):
+Print the Logs
+----
 
-    jestas --server http://my.jenkins.url --user clarence-oveur --token foo123xyz
+'job3' is a job in a folder, so --recursive is necessary
 
-Allow Jenkins server with a self-signed certificate:
+    $ jestas --server http://localhost:8080 logs --recursive job3
+    job3 ok http://localhost:8080/job/TestCo/job/job3/
+    ------------------------------------------
+    Started by user trever shick
+    Running as SYSTEM
+    Building in workspace /var/jenkins_home/workspace/TestCo/job3
+    Finished: SUCCESS
 
-    jestas --server https://my.jenkins.url --trust
 
-By default, the status of all build jobs is listed.
+Configuration
+----
 
-Giving a job name as a parameter will display the latest (possibly partial) build log:
+    cat ~/.jestas.toml
 
-List jobs with node and win
-    jestas node win
+    server = "http://localhost:8080"
+
+    [jobs]
+    recursive = true
+
+
 
