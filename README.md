@@ -1,4 +1,7 @@
+Inspired by Mike Arvela's Jestas ( https://github.com/mieky/jestas ), a node based version.
+
 jestas
+----
 
     $ jestas --server http://localhost:8080
     # returns nothing for now
