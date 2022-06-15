@@ -9,6 +9,20 @@ pub enum JobStatus {
     Fail,
 }
 
+impl JenkinsItem {
+    pub fn name<'a>(&'a self) -> &'a str {
+        match self {
+            JenkinsItem::Folder { full_name, name, .. } => full_name.as_ref().unwrap_or(name).as_str(),
+            JenkinsItem::WorkflowJob { full_name, name, .. } => full_name.as_ref().unwrap_or(name).as_str(),
+            JenkinsItem::FreeStyleProject { full_name, name, .. } => full_name.as_ref().unwrap_or(name).as_str(),
+            JenkinsItem::FreeStyleBuild { full_name, name, .. } => full_name.as_ref().unwrap_or(name).as_str(),
+            JenkinsItem::WorkflowMultiBranchProject { full_name, name, .. } => full_name.as_ref().unwrap_or(name).as_str(),
+            JenkinsItem::Hudson { .. } => "/",
+            JenkinsItem::Other => "other",
+        }
+    }
+}
+
 impl std::fmt::Display for JobStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
@@ -48,6 +62,7 @@ pub enum JenkinsItem {
     Hudson { url: String, jobs: Option<Vec<JenkinsItem>> },
     #[serde(rename = "hudson.model.FreeStyleProject")]
     FreeStyleProject {
+        full_name: Option<String>,
         name: String,
         url: String,
         #[serde(rename = "color", deserialize_with = "deserialize_color")]
@@ -55,6 +70,7 @@ pub enum JenkinsItem {
     },
     #[serde(rename = "hudson.model.FreeStyleBuild")]
     FreeStyleBuild {
+        full_name: Option<String>,
         name: String,
         url: String,
         result: Option<String>,
@@ -62,19 +78,22 @@ pub enum JenkinsItem {
     #[serde(rename = "com.cloudbees.hudson.plugins.folder.Folder")]
     Folder {
         display_name: Option<String>,
+        full_name: Option<String>,
         name: String,
         url: String,
-        #[serde(default)]
         jobs: Option<Vec<JenkinsItem>>,
     },
     #[serde(rename = "org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject")]
     WorkflowMultiBranchProject {
+        full_name: Option<String>,
         name: String,
         url: String,
         result: Option<String>,
+        jobs: Option<Vec<JenkinsItem>>,
     },
     #[serde(rename = "org.jenkinsci.plugins.workflow.job.WorkflowJob")]
     WorkflowJob {
+        full_name: Option<String>,
         name: String,
         url: String,
         #[serde(rename = "color", deserialize_with = "deserialize_color")]
@@ -86,17 +105,22 @@ pub enum JenkinsItem {
 
 impl JenkinsItem {
     pub fn jobs_iter<'a>(&'a self) -> std::slice::Iter<'a, JenkinsItem> {
-        if let JenkinsItem::Hudson { jobs, .. } = self {
-            if let Some(j) = jobs {
-                return j.iter();
-            }
+        let js = match self {
+            JenkinsItem::Folder { jobs, .. } =>jobs,
+            JenkinsItem::Hudson { jobs, .. } => jobs,
+            JenkinsItem::WorkflowMultiBranchProject { jobs, .. } => jobs,
+            _=> &None,
+        };
+
+        if let Some(j) = js {
+            return j.iter();
         }
         [].iter()
     }
 
     pub fn walk(&self, visitor: &mut dyn JenkinsItemVisitor) -> crate::Result<()> {
         debug!("walk {:?}", self);
-        let result = match self {
+        match self {
             JenkinsItem::Folder { .. } => visitor.visit_folder(self),
             JenkinsItem::WorkflowJob { .. } => visitor.visit_workflow_job(self),
             JenkinsItem::FreeStyleProject { .. } => visitor.visit_freestyle_project(self),
@@ -106,16 +130,11 @@ impl JenkinsItem {
                 visitor.visit_workflow_mb_project(self)
             }
             JenkinsItem::Other => Ok(()),
-        };
-        if let Err(e) = result {
-            return Err(e);
-        }
+        }?;
 
         for j in self.jobs_iter() {
             debug!("jobs_iter {:?}", j);
-            if let Err(x) = j.walk(visitor) {
-                return Result::Err(x);
-            }
+            j.walk(visitor)?;
         }
         Ok(())
     }

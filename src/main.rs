@@ -5,6 +5,7 @@ extern crate serde;
 extern crate log;
 use log::debug;
 
+extern crate termion;
 extern crate clap;
 extern crate env_logger;
 extern crate fuzzy_matcher;

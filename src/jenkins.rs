@@ -23,5 +23,6 @@ pub fn load_jenkins_item(url: &str, client: &Client) -> Result<JenkinsItem> {
         .query(&[("pretty", "true")])
         .send()?
         .json()?;
+    debug!("Object Loaded from {} : {:?}", url, response);
     Ok(response)
 }
